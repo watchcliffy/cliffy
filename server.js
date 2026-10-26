@@ -21,6 +21,11 @@ const TRUST_PROXY = !!process.env.RENDER; // Render'da gerçek IP, X-Forwarded-F
 // İş kuralları: fiyatlar, bonuslar, limitler.
 const CONFIG = {
   demoPayments: DEMO_PAYMENTS,
+  // Android uygulamasındaki ödüllü reklam. ADMOB_REWARDED_ID verilmezse Google'ın test reklamı gösterilir.
+  admob: {
+    rewardedId: process.env.ADMOB_REWARDED_ID || 'ca-app-pub-3940256099942544/5224354917',
+    testing: !process.env.ADMOB_REWARDED_ID,
+  },
   signupBonus: 100,
   dailyBonus: 20,
   adUnlocksPerDay: 5,

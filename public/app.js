@@ -32,6 +32,7 @@ function svg(paths) {
 }
 const ICON = {
   back: svg('<path d="M15 18l-6-6 6-6"/>'),
+  home: svg('<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'),
   heart: svg('<path d="M12 20.5s-7.5-4.6-9.6-9.3A5.3 5.3 0 0 1 12 6.1a5.3 5.3 0 0 1 9.6 5.1c-2.1 4.7-9.6 9.3-9.6 9.3z"/>'),
   grid: svg('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
   share: svg('<path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7M16 6l-4-4-4 4M12 2v14"/>'),
@@ -104,7 +105,7 @@ function coverHtml(s, extra = '') {
 
 function topbar(title) {
   return `<header class="topbar">
-    ${title ? `<h1 class="title">${esc(title)}</h1>` : '<div class="logo">Kısa<span>Dizi</span></div>'}
+    ${title ? `<h1 class="title">${esc(title)}</h1>` : '<div class="logo">Cliff<span>y</span></div>'}
     <a class="coin-chip" href="#/wallet"><span class="coin"></span><b data-coins>${state.me.coins}</b></a>
   </header>`;
 }
@@ -118,8 +119,18 @@ function card(s, { rank, badge, href } = {}) {
   </a>`;
 }
 
+// Uygulama içinde gezilen sayfalar. Geri butonu yalnızca uygulama içinden gelindiyse history.back() yapar;
+// aksi halde yeni kayıt eklemeden (replace) üst sayfaya gider, böylece iki sayfa arasında döngü oluşmaz.
+const navStack = [];
+function trackNav() {
+  const h = '#/' + location.hash.replace(/^#\/?/, '');
+  if (navStack.length > 1 && navStack[navStack.length - 2] === h) navStack.pop();
+  else if (navStack[navStack.length - 1] !== h) navStack.push(h);
+}
+
 function goBack(fallback) {
-  if (history.length > 1) history.back(); else location.hash = fallback;
+  if (navStack.length > 1) history.back();
+  else { navStack.pop(); location.replace(fallback); }
 }
 
 // ================= Yönlendirme =================
@@ -127,9 +138,10 @@ async function render() {
   const seq = ++renderSeq;
   if (state.cleanup) { state.cleanup(); state.cleanup = null; }
   closeSheet();
+  trackNav();
   const [page, a, b] = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
   if (page !== 'wallet') state.returnTo = null;
-  tabbar.hidden = page === 'watch' || page === 'series';
+  tabbar.hidden = page === 'watch'; // tam ekran oynatıcıda menü yok, yerine ana sayfa butonu var
   $$('#tabbar a').forEach((el) => el.classList.toggle('active', el.dataset.tab === (page || 'home')));
   window.scrollTo(0, 0);
   try {
@@ -257,6 +269,7 @@ async function viewWatch(seq, seriesId, startNo) {
       <div class="player-top">
         <button class="back-btn" id="back">${ICON.back}</button>
         <div class="player-title"><b>${esc(s.title)}</b><span id="ep-label"></span></div>
+        <a class="back-btn home-btn" href="#/" aria-label="Ana sayfa">${ICON.home}</a>
       </div>
       <div class="feed">
         ${eps.map((e, i) => `
@@ -388,7 +401,7 @@ async function viewWatch(seq, seriesId, startNo) {
       }
       b.disabled = true;
       try {
-        if (m === 'ad') { closeSheet(); await showFakeAd(); }
+        if (m === 'ad') { closeSheet(); await showRewardedAd(); }
         const r = await api(`/api/episodes/${e.id}/unlock`, { method: 'POST', body: { method: m } });
         closeSheet();
         onUnlocked(i, r);
@@ -445,7 +458,7 @@ async function viewWatch(seq, seriesId, startNo) {
   });
 
   // Üst ve yan butonlar
-  $('#back', player).onclick = () => { location.hash = `#/series/${s.id}`; };
+  $('#back', player).onclick = () => goBack(`#/series/${s.id}`);
   unmuteBtn.onclick = () => {
     state.muted = false;
     unmuteBtn.hidden = true;
@@ -507,7 +520,19 @@ async function viewWatch(seq, seriesId, startNo) {
   };
 }
 
-// Demo reklam: gerçek uygulamada AdMob "ödüllü reklam" gösterilir.
+// Ödüllü reklam: Android uygulamasında (Capacitor + AdMob eklentisi) gerçek reklam, tarayıcıda demo reklam.
+let admobReady = null;
+async function showRewardedAd() {
+  const AdMob = window.Capacitor?.Plugins?.AdMob;
+  const adId = state.config.admob?.rewardedId;
+  if (!AdMob || !adId) return showFakeAd();
+  if (!admobReady) admobReady = AdMob.initialize({});
+  await admobReady;
+  await AdMob.prepareRewardVideoAd({ adId, isTesting: state.config.admob.testing });
+  const reward = await AdMob.showRewardVideoAd();
+  if (!reward) throw new Error('Ödülü almak için reklamı sonuna kadar izle');
+}
+
 function showFakeAd() {
   return new Promise((resolve) => {
     let left = 5;

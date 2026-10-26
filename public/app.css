@@ -168,6 +168,7 @@ h1, h2, h3 { letter-spacing: -0.3px; }
 }
 .player-top > * { pointer-events: auto; }
 .player-title { min-width: 0; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); }
+.home-btn { margin-left: auto; }
 .player-title b { display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .player-title span { font-size: 12px; color: #ccc; }
 .side-actions { position: absolute; right: 8px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 10; display: flex; flex-direction: column; gap: 18px; }

@@ -241,6 +241,7 @@ function route(method, pattern, handler) {
 
 // ---------- Kullanıcı API'si ----------
 route('GET', '/api/config', () => CONFIG);
+route('GET', '/api/health', () => ({ ok: true, storage: pool ? 'postgres' : 'file' })); // gizli bilgi içermez
 
 route('POST', '/api/auth/guest', ({ req }) => {
   if (tooMany(req, 'guest', CONFIG.guestsPerHourPerIp)) throw new HttpError(429, 'Çok fazla yeni hesap açıldı. Biraz sonra tekrar dene.');

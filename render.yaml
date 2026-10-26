@@ -9,3 +9,7 @@ services:
     envVars:
       - key: ADMIN_KEY
         generateValue: true # Render rastgele güçlü bir anahtar üretir (Environment sekmesinde görünür)
+      - key: MEDIA_SECRET
+        generateValue: true # video bağlantılarını imzalar; sabit kalınca yeniden başlatmada bağlantılar bozulmaz
+      - key: DEMO_PAYMENTS
+        value: "true" # gerçek lisanslı diziler eklenmeden önce "false" yapılacak

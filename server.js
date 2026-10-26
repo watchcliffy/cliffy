@@ -12,12 +12,21 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const MEDIA_DIR = path.join(__dirname, 'media');
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
+// Video bağlantılarını imzalayan gizli anahtar. Ayarlanmazsa her açılışta yenisi üretilir (eski bağlantılar geçersizleşir).
+const MEDIA_SECRET = process.env.MEDIA_SECRET || crypto.randomBytes(32).toString('hex');
+// Demo ödeme/reklam: açıkken satın alma ücretsiz çalışır. Gerçek içerik gelince DEMO_PAYMENTS=false yapılmalı.
+const DEMO_PAYMENTS = process.env.DEMO_PAYMENTS !== 'false';
+const TRUST_PROXY = !!process.env.RENDER; // Render'da gerçek IP, X-Forwarded-For başlığında gelir
 
 // İş kuralları: fiyatlar, bonuslar, limitler.
 const CONFIG = {
+  demoPayments: DEMO_PAYMENTS,
   signupBonus: 100,
   dailyBonus: 20,
   adUnlocksPerDay: 5,
+  guestsPerHourPerIp: 20, // mobil operatörlerde çok kişi aynı IP'yi paylaşır, o yüzden çok düşük tutulmamalı
+  adminFailsPerHour: 10,
+  videoLinkHours: 6,
   coinPacks: [
     { id: 'c100', coins: 100, bonus: 0, price: 49.99 },
     { id: 'c300', coins: 300, bonus: 30, price: 129.99 },
@@ -37,6 +46,8 @@ const MIME = {
   '.webm': 'video/webm', '.mov': 'video/quicktime', '.m3u8': 'application/vnd.apple.mpegurl', '.ts': 'video/mp2t',
 };
 const UPLOAD_EXT = new Set(['.mp4', '.m4v', '.webm', '.mov', '.jpg', '.jpeg', '.png', '.webp']);
+const PROTECTED_EXT = new Set(['.mp4', '.m4v', '.webm', '.mov']); // /media/ altında imzasız açılamaz
+const SECURITY_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin' };
 
 // ---------- Veritabanı (JSON dosyası) ----------
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -71,7 +82,7 @@ const now = () => Date.now();
 const today = () => new Date().toISOString().slice(0, 10);
 
 function send(res, status, data) {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.writeHead(status, { ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(data));
 }
 
@@ -99,8 +110,48 @@ function getUser(req) {
   return user;
 }
 
+const safeEqual = (a, b) => {
+  const x = Buffer.from(String(a)), y = Buffer.from(String(b));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+};
+
+// ---------- Hız sınırı (aynı IP'den çok fazla istek) ----------
+const hits = new Map(); // "tür:ip" → { count, reset }
+const clientIp = (req) => (TRUST_PROXY && String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket.remoteAddress;
+function tooMany(req, kind, max) {
+  const h = hits.get(kind + ':' + clientIp(req));
+  return !!h && h.reset > now() && h.count >= max;
+}
+function hit(req, kind, windowMs = 36e5) {
+  const k = kind + ':' + clientIp(req);
+  let h = hits.get(k);
+  if (!h || h.reset <= now()) { h = { count: 0, reset: now() + windowMs }; hits.set(k, h); }
+  h.count++;
+}
+setInterval(() => { for (const [k, h] of hits) if (h.reset <= now()) hits.delete(k); }, 6e5).unref();
+
 function requireAdmin(req) {
-  if (req.headers['x-admin-key'] !== ADMIN_KEY) throw new HttpError(403, 'Yetkisiz');
+  if (tooMany(req, 'admin', CONFIG.adminFailsPerHour)) throw new HttpError(429, 'Çok fazla hatalı deneme. Bir saat sonra tekrar dene.');
+  if (!safeEqual(req.headers['x-admin-key'] || '', ADMIN_KEY)) { hit(req, 'admin'); throw new HttpError(403, 'Yetkisiz'); }
+}
+
+// ---------- Süreli video bağlantıları ----------
+const mediaSig = (p, exp) => crypto.createHmac('sha256', MEDIA_SECRET).update(p + ':' + exp).digest('hex').slice(0, 32);
+function signMedia(url) {
+  if (!url || !url.startsWith('/media/')) return url; // dış servis (Bunny vb.) adresleri olduğu gibi kalır
+  const exp = Math.floor(now() / 1000) + CONFIG.videoLinkHours * 3600;
+  return `${url}?exp=${exp}&sig=${mediaSig(url, exp)}`;
+}
+function checkMediaSig(pathname, query) {
+  if (!PROTECTED_EXT.has(path.extname(pathname).toLowerCase())) return; // kapak resimleri herkese açık
+  const exp = Number(query.get('exp'));
+  if (!(exp * 1000 > now()) || !safeEqual(query.get('sig') || '', mediaSig(pathname, exp))) {
+    throw new HttpError(403, 'Video bağlantısının süresi dolmuş. Sayfayı yenile.');
+  }
+}
+
+function requireDemoPayments() {
+  if (!DEMO_PAYMENTS) throw new HttpError(503, 'Ödeme sistemi çok yakında açılacak');
 }
 
 const findSeries = (id) => db.series.find((s) => s.id === id) || (() => { throw new HttpError(404, 'Dizi bulunamadı'); })();
@@ -135,7 +186,7 @@ function episodeView(ep, s, u) {
   return {
     id: ep.id, series_id: ep.series_id, episode_no: ep.episode_no, title: ep.title, duration: ep.duration,
     price: priceOf(ep, s), free: isFree(ep, s), locked: !open,
-    video_url: open ? ep.video_url : null, // kilitli bölümün adresi asla gönderilmez
+    video_url: open ? signMedia(ep.video_url) : null, // kilitli bölümün adresi asla gönderilmez
   };
 }
 
@@ -170,7 +221,9 @@ function route(method, pattern, handler) {
 // ---------- Kullanıcı API'si ----------
 route('GET', '/api/config', () => CONFIG);
 
-route('POST', '/api/auth/guest', () => {
+route('POST', '/api/auth/guest', ({ req }) => {
+  if (tooMany(req, 'guest', CONFIG.guestsPerHourPerIp)) throw new HttpError(429, 'Çok fazla yeni hesap açıldı. Biraz sonra tekrar dene.');
+  hit(req, 'guest');
   const u = {
     id: newId(),
     token: crypto.randomBytes(24).toString('hex'),
@@ -218,6 +271,7 @@ route('POST', '/api/episodes/:id/unlock', async ({ req, params }) => {
       addTx(u, 'unlock', -price, `${s.title} · Bölüm ${ep.episode_no}`);
     } else if (body.method === 'ad') {
       // DEMO: Gerçekte reklam ağı (AdMob SSV) sunucuya doğrulama gönderir.
+      requireDemoPayments();
       if (adsLeft(u) <= 0) throw new HttpError(429, 'Bugünkü reklam hakkın doldu');
       u.ad_log.count++;
     } else {
@@ -266,6 +320,7 @@ route('POST', '/api/checkin', ({ req }) => {
 
 // DEMO ödeme: Gerçekte Google Play / App Store satın alması RevenueCat webhook'u ile doğrulanır.
 route('POST', '/api/purchase/coins', async ({ req }) => {
+  requireDemoPayments();
   const u = getUser(req);
   const body = await readJson(req);
   const pack = CONFIG.coinPacks.find((p) => p.id === body.pack_id);
@@ -278,6 +333,7 @@ route('POST', '/api/purchase/coins', async ({ req }) => {
 });
 
 route('POST', '/api/purchase/vip', async ({ req }) => {
+  requireDemoPayments();
   const u = getUser(req);
   const body = await readJson(req);
   const plan = CONFIG.vipPlans.find((p) => p.id === body.plan_id);
@@ -317,7 +373,7 @@ route('GET', '/api/admin/overview', ({ req }) => {
       unlocks: db.users.reduce((a, u) => a + u.unlocked.length, 0),
       views: db.series.reduce((a, s) => a + (s.views || 0), 0),
     },
-    series: db.series.map((s) => ({ ...s, episodes: episodesOf(s.id) })),
+    series: db.series.map((s) => ({ ...s, episodes: episodesOf(s.id).map((e) => ({ ...e, video_url: signMedia(e.video_url) })) })),
   };
 });
 
@@ -407,18 +463,18 @@ function serveFile(req, res, baseDir, rel) {
     if (range[1]) { start = Number(range[1]); end = range[2] ? Math.min(Number(range[2]), stat.size - 1) : stat.size - 1; }
     else { start = Math.max(0, stat.size - Number(range[2])); end = stat.size - 1; }
     if (start >= stat.size || start > end) {
-      res.writeHead(416, { 'Content-Range': `bytes */${stat.size}` });
+      res.writeHead(416, { ...SECURITY_HEADERS, 'Content-Range': `bytes */${stat.size}` });
       return res.end();
     }
     res.writeHead(206, {
-      'Content-Type': type, 'Content-Length': end - start + 1,
+      ...SECURITY_HEADERS, 'Content-Type': type, 'Content-Length': end - start + 1,
       'Content-Range': `bytes ${start}-${end}/${stat.size}`, 'Accept-Ranges': 'bytes',
     });
     return fs.createReadStream(file, { start, end }).pipe(res);
   }
   res.writeHead(200, {
-    'Content-Type': type, 'Content-Length': stat.size, 'Accept-Ranges': 'bytes',
-    'Cache-Control': baseDir === MEDIA_DIR ? 'public, max-age=86400' : 'no-cache',
+    ...SECURITY_HEADERS, 'Content-Type': type, 'Content-Length': stat.size, 'Accept-Ranges': 'bytes',
+    'Cache-Control': baseDir !== MEDIA_DIR ? 'no-cache' : PROTECTED_EXT.has(path.extname(file).toLowerCase()) ? 'private, max-age=3600' : 'public, max-age=86400',
   });
   fs.createReadStream(file).pipe(res);
 }
@@ -440,10 +496,13 @@ const server = http.createServer(async (req, res) => {
       }
       throw new HttpError(404, 'Bulunamadı');
     }
-    if (url.pathname.startsWith('/media/')) return serveFile(req, res, MEDIA_DIR, url.pathname.slice(7));
+    if (url.pathname.startsWith('/media/')) {
+      checkMediaSig(url.pathname, url.searchParams);
+      return serveFile(req, res, MEDIA_DIR, url.pathname.slice(7));
+    }
     return serveFile(req, res, PUBLIC_DIR, url.pathname === '/' ? 'index.html' : url.pathname.slice(1));
   } catch (e) {
-    const status = e.status || 500;
+    const status = e instanceof URIError ? 400 : e.status || 500; // bozuk adres (%zz gibi) sunucu hatası sayılmaz
     if (status === 500) console.error(e);
     if (!res.headersSent) send(res, status, { error: status === 500 ? 'Sunucu hatası' : e.message });
     else res.end();
@@ -463,6 +522,7 @@ server.listen(PORT, () => {
   }
   if (!fs.existsSync(path.join(MEDIA_DIR, 'demo', 'clip1.mp4'))) console.log('  UYARI: Demo videolar eksik. İndirmek için: npm run demo-videos');
   if (ADMIN_KEY === 'admin123') console.log('  UYARI: Varsayılan yönetici anahtarı kullanılıyor (admin123). Yayına almadan önce ADMIN_KEY ayarlayın.');
+  if (DEMO_PAYMENTS) console.log('  UYARI: Demo ödeme açık (jeton/VIP ücretsiz). Gerçek içerikte DEMO_PAYMENTS=false yapın.');
   console.log('');
   // Baslat.bat ile açıldığında tarayıcıyı otomatik aç (Windows).
   if (process.env.OPEN_BROWSER) require('child_process').exec(`start "" http://localhost:${PORT}`);

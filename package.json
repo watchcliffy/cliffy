@@ -1,0 +1,15 @@
+{
+  "name": "kisadizi",
+  "version": "0.1.0",
+  "description": "ReelShort / DramaBox benzeri kısa dizi izleme uygulaması (MVP)",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "reset": "node seed.js",
+    "demo-videos": "node download-demo.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

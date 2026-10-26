@@ -1,0 +1,11 @@
+# Render.com yayın ayarı. GitHub deposu bağlanınca Render bu dosyayı okur.
+services:
+  - type: web
+    name: kisadizi
+    runtime: node
+    plan: free
+    buildCommand: npm run demo-videos
+    startCommand: npm start
+    envVars:
+      - key: ADMIN_KEY
+        generateValue: true # Render rastgele güçlü bir anahtar üretir (Environment sekmesinde görünür)

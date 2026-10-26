@@ -1,0 +1,12 @@
+{
+  "appId": "com.watchcliffy.app",
+  "appName": "Cliffy",
+  "webDir": "www",
+  "server": {
+    "url": "https://cliffy-yhfq.onrender.com",
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#0b0b10"
+  }
+}

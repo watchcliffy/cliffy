@@ -49,28 +49,49 @@ const UPLOAD_EXT = new Set(['.mp4', '.m4v', '.webm', '.mov', '.jpg', '.jpeg', '.
 const PROTECTED_EXT = new Set(['.mp4', '.m4v', '.webm', '.mov']); // /media/ altında imzasız açılamaz
 const SECURITY_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin' };
 
-// ---------- Veritabanı (JSON dosyası) ----------
+// ---------- Veritabanı ----------
+// DATABASE_URL varsa (Supabase/Postgres) tüm veri tek satırda JSON olarak orada tutulur; yoksa data/db.json kullanılır.
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(MEDIA_DIR, { recursive: true });
 
+const pool = process.env.DATABASE_URL
+  ? new (require('pg').Pool)({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false }, max: 2 })
+  : null;
+
 let db;
-if (fs.existsSync(DB_FILE)) {
-  db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-} else {
+async function loadDb() {
+  if (pool) {
+    await pool.query('CREATE TABLE IF NOT EXISTS app_state (id int PRIMARY KEY, data jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())');
+    const r = await pool.query('SELECT data FROM app_state WHERE id = 1');
+    if (r.rows.length) { db = r.rows[0].data; return; }
+  } else if (fs.existsSync(DB_FILE)) {
+    db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    return;
+  }
   db = buildSeed();
-  saveNow();
+  await saveNow();
   console.log('İlk çalıştırma: demo veriler oluşturuldu.');
 }
 
 let saveTimer = null;
+let saving = Promise.resolve(); // kayıtlar sırayla yapılır, biri bitmeden diğeri başlamaz
 function save() {
   if (saveTimer) return;
   saveTimer = setTimeout(() => { saveTimer = null; saveNow(); }, 200);
 }
 function saveNow() {
-  const tmp = DB_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
-  fs.renameSync(tmp, DB_FILE);
+  saving = saving.then(() => {
+    if (pool) {
+      return pool.query(
+        'INSERT INTO app_state (id, data, updated_at) VALUES (1, $1, now()) ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()',
+        [JSON.stringify(db)],
+      );
+    }
+    const tmp = DB_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
+    fs.renameSync(tmp, DB_FILE);
+  }).catch((e) => console.error('Veri kaydedilemedi:', e.message));
+  return saving;
 }
 
 // ---------- Yardımcılar ----------
@@ -509,8 +530,9 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
+loadDb().then(() => server.listen(PORT, () => {
   console.log(`\n  Cliffy çalışıyor:   http://localhost:${PORT}`);
+  console.log(`  Veritabanı:           ${pool ? 'Postgres (DATABASE_URL)' : DB_FILE}`);
   console.log(`  Yönetim paneli:       http://localhost:${PORT}/admin.html`);
   // Telefondan erişim adresleri (aynı ağda olmalı). 169.254.* adresleri kullanılamaz, atlanır.
   for (const [name, addrs] of Object.entries(require('os').networkInterfaces())) {
@@ -526,7 +548,15 @@ server.listen(PORT, () => {
   console.log('');
   // Baslat.bat ile açıldığında tarayıcıyı otomatik aç (Windows).
   if (process.env.OPEN_BROWSER) require('child_process').exec(`start "" http://localhost:${PORT}`);
+})).catch((e) => {
+  console.error('Veritabanı açılamadı:', e.message);
+  process.exit(1);
 });
 
-process.on('SIGINT', () => { saveNow(); process.exit(0); });
-process.on('SIGTERM', () => { saveNow(); process.exit(0); }); // Render sunucuyu kapatırken
+async function shutdown() {
+  clearTimeout(saveTimer);
+  if (db) await saveNow();
+  process.exit(0);
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown); // Render sunucuyu kapatırken

@@ -17,10 +17,11 @@ ReelShort / DramaBox benzeri kısa dikey dizi izleme uygulaması (MVP). Kullanı
 - `DEMO_PAYMENTS=false` demo satın alma ve reklamla açmayı kapatır (gerçek lisanslı içerik gelmeden önce yapılmalı).
 
 ## Notlar
-- Platform Windows + PowerShell; Node ve Git kurulu (`C:\Program Files\Git\cmd\git.exe`), Flutter yok. Yerel git deposu var, GitHub'a henüz gönderilmedi.
+- Platform Windows + PowerShell; Node ve Git kurulu (`C:\Program Files\Git\cmd\git.exe`), Flutter yok.
+- Yayında: https://cliffy-yhfq.onrender.com (Render ücretsiz plan, Blueprint). Kod: github.com/watchcliffy/cliffy (gizli). `git push` buradan çalışır; Render her push'ta otomatik yeniden yayınlar. Giriş gerekirse kullanıcı `GitHuba-Yukle.bat`'ı çalıştırır (cihaz koduyla giriş).
 - `render.yaml`: Render yayın ayarı (build'de demo videoları indirir, ADMIN_KEY'i Render üretir). Render'da `data/db.json` her yeniden yüklemede sıfırlanır; kalıcı veritabanı gerekecek.
 - `sirketler/`: içerik lisansı için şirketlere gidecek e-posta taslakları (git dışı).
 - İş e-postası: herzamanonline2222@gmail.com (git kayıtları ve şirket yazışmaları bununla). Kişisel Gmail hiçbir yerde kullanılmamalı.
-- Alan adı planı: watchcliffy.com (boştu, henüz alınmadı). Sıra: GitHub → Render → alan adı → şirketlere e-posta.
+- Alan adı planı: watchcliffy.com (boştu, henüz alınmadı). Sıra: kalıcı veritabanı → alan adı → şirketlere e-posta.
 - Harici demo video adresleri (Google gtv bucket) 403 verdiği için videolar yerelde tutuluyor.
 - Yol haritası: GitHub → Render'da yayın → PWABuilder/Capacitor ile APK → RevenueCat, AdMob, kalıcı veritabanı.

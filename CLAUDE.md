@@ -13,6 +13,8 @@ ReelShort / DramaBox benzeri kısa dikey dizi izleme uygulaması (MVP). Kullanı
 - `data/db.json`: JSON veritabanı (series, episodes, users, transactions). Sunucu belleğinde tutulur; sunucu çalışırken dosyayı elle düzenleme.
 - `seed.js`: 8 demo dizi. `public/app.js`: hash router'lı tek sayfa uygulama (ana sayfa, dizi, dikey oynatıcı, listem, cüzdan, profil). `public/admin.*`: yönetim paneli.
 - Kilitli bölümün `video_url`'i istemciye gönderilmez (`episodeView`). Ödeme ve reklam şu an demo.
+- `/media/` altındaki videolar yalnızca imzalı, süreli adresle açılır (`signMedia`, `MEDIA_SECRET`); kapak resimleri açık. Misafir hesap açma ve hatalı admin şifresi IP başına sınırlı.
+- `DEMO_PAYMENTS=false` demo satın alma ve reklamla açmayı kapatır (gerçek lisanslı içerik gelmeden önce yapılmalı).
 
 ## Notlar
 - Platform Windows + PowerShell; Node ve Git kurulu (`C:\Program Files\Git\cmd\git.exe`), Flutter yok. Yerel git deposu var, GitHub'a henüz gönderilmedi.

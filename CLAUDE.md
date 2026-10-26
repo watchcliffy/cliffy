@@ -20,5 +20,7 @@ ReelShort / DramaBox benzeri kısa dikey dizi izleme uygulaması (MVP). Kullanı
 - Platform Windows + PowerShell; Node ve Git kurulu (`C:\Program Files\Git\cmd\git.exe`), Flutter yok. Yerel git deposu var, GitHub'a henüz gönderilmedi.
 - `render.yaml`: Render yayın ayarı (build'de demo videoları indirir, ADMIN_KEY'i Render üretir). Render'da `data/db.json` her yeniden yüklemede sıfırlanır; kalıcı veritabanı gerekecek.
 - `sirketler/`: içerik lisansı için şirketlere gidecek e-posta taslakları (git dışı).
+- İş e-postası: herzamanonline2222@gmail.com (git kayıtları ve şirket yazışmaları bununla). Kişisel Gmail hiçbir yerde kullanılmamalı.
+- Alan adı planı: watchcliffy.com (boştu, henüz alınmadı). Sıra: GitHub → Render → alan adı → şirketlere e-posta.
 - Harici demo video adresleri (Google gtv bucket) 403 verdiği için videolar yerelde tutuluyor.
 - Yol haritası: GitHub → Render'da yayın → PWABuilder/Capacitor ile APK → RevenueCat, AdMob, kalıcı veritabanı.

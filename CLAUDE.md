@@ -15,6 +15,8 @@ ReelShort / DramaBox benzeri kısa dikey dizi izleme uygulaması (MVP). Kullanı
 - Kilitli bölümün `video_url`'i istemciye gönderilmez (`episodeView`). Ödeme ve reklam şu an demo.
 
 ## Notlar
-- Platform Windows + PowerShell; Flutter ve Git kurulu değil, Node kurulu.
+- Platform Windows + PowerShell; Node ve Git kurulu (`C:\Program Files\Git\cmd\git.exe`), Flutter yok. Yerel git deposu var, GitHub'a henüz gönderilmedi.
+- `render.yaml`: Render yayın ayarı (build'de demo videoları indirir, ADMIN_KEY'i Render üretir). Render'da `data/db.json` her yeniden yüklemede sıfırlanır; kalıcı veritabanı gerekecek.
+- `sirketler/`: içerik lisansı için şirketlere gidecek e-posta taslakları (git dışı).
 - Harici demo video adresleri (Google gtv bucket) 403 verdiği için videolar yerelde tutuluyor.
 - Yol haritası: GitHub → Render'da yayın → PWABuilder/Capacitor ile APK → RevenueCat, AdMob, kalıcı veritabanı.

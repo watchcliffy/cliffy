@@ -1,5 +1,5 @@
 'use strict';
-// KısaDizi sunucusu: API + statik dosyalar + video yayını. Harici paket gerektirmez.
+// Cliffy sunucusu: API + statik dosyalar + video yayını. Harici paket gerektirmez.
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -510,7 +510,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\n  KısaDizi çalışıyor:   http://localhost:${PORT}`);
+  console.log(`\n  Cliffy çalışıyor:   http://localhost:${PORT}`);
   console.log(`  Yönetim paneli:       http://localhost:${PORT}/admin.html`);
   // Telefondan erişim adresleri (aynı ağda olmalı). 169.254.* adresleri kullanılamaz, atlanır.
   for (const [name, addrs] of Object.entries(require('os').networkInterfaces())) {

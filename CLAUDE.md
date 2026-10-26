@@ -1,4 +1,4 @@
-# KısaDizi
+# Cliffy (eski adı KısaDizi)
 
 ReelShort / DramaBox benzeri kısa dikey dizi izleme uygulaması (MVP). Kullanıcı Türkçe konuşur ve programlamaya yeni; yanıtlar Türkçe, sade ve adım adım olmalı.
 

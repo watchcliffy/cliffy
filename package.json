@@ -1,5 +1,5 @@
 {
-  "name": "kisadizi",
+  "name": "cliffy",
   "version": "0.1.0",
   "description": "ReelShort / DramaBox benzeri kısa dizi izleme uygulaması (MVP)",
   "main": "server.js",

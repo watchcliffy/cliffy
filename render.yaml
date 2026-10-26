@@ -1,7 +1,7 @@
 # Render.com yayın ayarı. GitHub deposu bağlanınca Render bu dosyayı okur.
 services:
   - type: web
-    name: kisadizi
+    name: cliffy
     runtime: node
     plan: free
     buildCommand: npm run demo-videos

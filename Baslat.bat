@@ -1,5 +1,5 @@
 @echo off
-title KisaDizi Sunucusu
+title Cliffy Sunucusu
 cd /d "%~dp0"
 
 where node >nul 2>nul
@@ -12,7 +12,7 @@ if errorlevel 1 (
 rem Sunucu zaten aciksa sadece tarayiciyi ac.
 powershell -NoProfile -Command "try { (New-Object Net.Sockets.TcpClient('localhost', 3000)).Close(); exit 0 } catch { exit 1 }"
 if not errorlevel 1 (
-  echo KisaDizi zaten calisiyor, tarayici aciliyor...
+  echo Cliffy zaten calisiyor, tarayici aciliyor...
   start "" http://localhost:3000
   timeout /t 3 >nul
   exit /b

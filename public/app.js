@@ -682,7 +682,7 @@ async function viewProfile(seq) {
       <a href="/admin.html" target="_blank" rel="noopener">🛠 Yönetim paneli <span>›</span></a>
       <button id="reset">↺ Yeni misafir hesabı aç <span>›</span></button>
     </div>
-    <p class="note">Misafir hesabın bu cihazda saklanır. KısaDizi demo sürümü.</p>`;
+    <p class="note">Misafir hesabın bu cihazda saklanır. Cliffy demo sürümü.</p>`;
 
   $('#reset', view).onclick = async () => {
     if (!confirm('Mevcut misafir hesabından çıkılacak ve yeni hesap açılacak. Emin misin?')) return;

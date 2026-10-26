@@ -1,4 +1,4 @@
-# KısaDizi: Kısa dizi izleme uygulaması (MVP)
+# Cliffy: Kısa dizi izleme uygulaması (MVP)
 
 ReelShort, DramaBox ve NetShort benzeri, dikey ve kısa bölümlerden oluşan dizi izleme uygulaması.
 Telefonda da çalışan bir web uygulaması (PWA) ve Node.js sunucusundan oluşur. **Hiçbir paket kurmanız gerekmez.**
